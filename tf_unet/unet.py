@@ -301,7 +301,7 @@ class Trainer(object):
     """
     
     prediction_path = "prediction"
-    verification_batch_size = 4
+    verification_batch_size = 1
     
     def __init__(self, net, batch_size=1, optimizer="momentum", opt_kwargs={}):
         self.net = net
@@ -414,10 +414,11 @@ class Trainer(object):
                     batch_x, batch_y = data_provider(self.batch_size)
                      
                     # Run optimization op (backprop)
+                    crop_y=util.crop_to_shape(batch_y, pred_shape)
+                    feed_dict={self.net.x: batch_x, self.net.y: crop_y, self.net.keep_prob: dropout}
+    
                     _, loss, lr, gradients = sess.run((self.optimizer, self.net.cost, self.learning_rate_node, self.net.gradients_node), 
-                                                      feed_dict={self.net.x: batch_x,
-                                                                 self.net.y: util.crop_to_shape(batch_y, pred_shape),
-                                                                 self.net.keep_prob: dropout})
+                                                      feed_dict=feed_dict)
 
                     if avg_gradients is None:
                         avg_gradients = [np.zeros_like(gradient) for gradient in gradients]

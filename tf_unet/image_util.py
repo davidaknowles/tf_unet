@@ -53,8 +53,10 @@ class BaseDataProvider(object):
         
         nx = data.shape[1]
         ny = data.shape[0]
-
-        return train_data.reshape(1, ny, nx, self.channels), labels.reshape(1, ny, nx, self.n_class),
+        
+        train_data=train_data.reshape(1, ny, nx, self.channels)
+        labels=labels.reshape(1, ny, nx, self.n_class)
+        return train_data, labels
     
     def _process_labels(self, label):
         if self.n_class == 2:
@@ -85,6 +87,7 @@ class BaseDataProvider(object):
     
     def __call__(self, n):
         train_data, labels = self._load_data_and_label()
+        print(train_data.shape)
         nx = train_data.shape[1]
         ny = train_data.shape[2]
     
@@ -147,24 +150,25 @@ class ImageDataProvider(BaseDataProvider):
     
     n_class = 2
     
-    def __init__(self, search_path, a_min=None, a_max=None, data_suffix=".tif", mask_suffix='_mask.tif'):
+    def __init__(self, search_paths, a_min=None, a_max=None, data_suffix=".tif", mask_suffix='_mask.tif', ignore_suffix="_poly.png"):
         super(ImageDataProvider, self).__init__(a_min, a_max)
         self.data_suffix = data_suffix
         self.mask_suffix = mask_suffix
         self.file_idx = -1
         
-        self.data_files = self._find_data_files(search_path)
+        self.data_files = self._find_data_files(search_paths, ignore_suffix)
     
         assert len(self.data_files) > 0, "No training files"
         print("Number of files used: %s" % len(self.data_files))
         
         img = self._load_file(self.data_files[0])
-        self.channels = 1 if len(img.shape) == 2 else img.shape[-1]
+        self.channels = 1 if len(img.shape) == 2 else 3
         
-    def _find_data_files(self, search_path):
-        all_files = glob.glob(search_path)
-        return [name for name in all_files if not self.mask_suffix in name]
-    
+    def _find_data_files(self, search_paths, ignore_suffix):
+        all_files=[]
+        for search_path in search_paths:
+            all_files += glob.glob(search_path) 
+        return [name for name in all_files if (self.data_suffix in name and not self.mask_suffix in name and not ignore_suffix in name)]
     
     def _load_file(self, path, dtype=np.float32):
         return np.array(Image.open(path), dtype)
@@ -181,6 +185,8 @@ class ImageDataProvider(BaseDataProvider):
         label_name = image_name.replace(self.data_suffix, self.mask_suffix)
         
         img = self._load_file(image_name, np.float32)
+        img = img[:500,:500,0:3] # cut alpha channel if present
         label = self._load_file(label_name, np.bool)
+        label=label[:500,:500,0]
     
         return img,label
